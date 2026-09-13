@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "carla-simulation-test-health"
+version = "1.0.0"
+description = "Validate, store, compare, and visualize CARLA simulation test health"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pandas>=2.2,<3.0",
+    "streamlit>=1.40,<2.0",
+]
+
+[project.scripts]
+carla-health = "cli:main"
+
+[tool.setuptools]
+py-modules = [
+    "carla_parser",
+    "cli",
+    "comparison",
+    "database",
+    "health",
+    "importer",
+]

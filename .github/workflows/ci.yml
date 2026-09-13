@@ -1,0 +1,20 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install .
+      - run: python -m unittest discover -s tests -v
+      - run: >-
+          python -c "from streamlit.testing.v1 import AppTest;
+          app = AppTest.from_file('dashboard.py').run();
+          assert not app.exception"
