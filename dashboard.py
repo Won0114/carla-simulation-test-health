@@ -10,15 +10,22 @@ from database import list_releases, load_route_results
 from health import build_health_report
 
 
-DATABASE_PATH = Path(__file__).parent / "data" / "test_health.db"
+DATA_DIRECTORY = Path(__file__).parent / "data"
 
 st.set_page_config(page_title="CARLA Test Health", page_icon="🚦", layout="wide")
 st.title("CARLA Simulation Test Health")
 st.caption("Health signals calculated from imported CARLA Leaderboard results")
 
-if not DATABASE_PATH.exists():
-    st.warning("No database found. Run `python3 cli.py import` first.")
+database_paths = sorted(DATA_DIRECTORY.glob("*.db"))
+if not database_paths:
+    st.warning("No database found. Run `python -m scripts.build_demo` first.")
     st.stop()
+
+DATABASE_PATH = st.sidebar.selectbox(
+    "Database",
+    database_paths,
+    format_func=lambda path: path.name,
+)
 
 releases = list_releases(DATABASE_PATH)
 selected_release = st.selectbox("Release filter", ["All releases", *releases])
@@ -75,6 +82,25 @@ if route_data:
 else:
     st.success("No routes require investigation.")
 
+st.subheader("Score and runtime profile")
+profile_data = pd.DataFrame(
+    [
+        {
+            "route_id": route.route_id,
+            "composed_score": route.composed_score,
+            "system_duration_seconds": route.duration_system,
+            "status": route.status,
+        }
+        for route in routes
+    ]
+)
+st.scatter_chart(
+    profile_data,
+    x="system_duration_seconds",
+    y="composed_score",
+    color="status",
+)
+
 st.subheader("Release comparison")
 if len(releases) < 2:
     st.info("Import results from at least two releases to enable comparison.")
@@ -108,3 +134,26 @@ else:
         else:
             for regression in comparison.regressions:
                 st.error(regression)
+
+        if comparison.route_regressions:
+            st.markdown("**Route-level regression triage**")
+            st.dataframe(
+                pd.DataFrame(
+                    [
+                        {
+                            "route_id": route.route_id,
+                            "status_change": (
+                                f"{route.baseline_status} → {route.candidate_status}"
+                            ),
+                            "score_delta": route.score_delta,
+                            "duration_delta_seconds": route.duration_delta,
+                            "infraction_delta": route.infraction_delta,
+                        }
+                        for route in comparison.route_regressions
+                    ]
+                ),
+                width="stretch",
+                hide_index=True,
+            )
+        else:
+            st.info("No route-level regressions crossed the triage thresholds.")

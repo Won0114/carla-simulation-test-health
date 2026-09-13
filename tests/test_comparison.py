@@ -40,6 +40,11 @@ class ReleaseComparisonTests(unittest.TestCase):
         self.assertLess(comparison.average_score_delta, -20.0)
         self.assertFalse(comparison.release_ready)
         self.assertTrue(any("Average score" in item for item in comparison.regressions))
+        self.assertEqual(len(comparison.route_regressions), 1)
+        self.assertEqual(
+            comparison.route_regressions[0].route_id, "RouteScenario_11_rep0"
+        )
+        self.assertLess(comparison.route_regressions[0].score_delta, -20.0)
 
 
 if __name__ == "__main__":

@@ -64,6 +64,14 @@ def main(arguments: list[str] | None = None) -> None:
         print(f"Release ready: {comparison.release_ready}")
         for regression in comparison.regressions:
             print(f"Regression: {regression}")
+        for route in comparison.route_regressions:
+            print(
+                "Route regression: "
+                f"{route.route_id} score={route.score_delta:+.2f}, "
+                f"duration={route.duration_delta:+.2f}s, "
+                f"infractions={route.infraction_delta:+d}, "
+                f"status={route.baseline_status}->{route.candidate_status}"
+            )
         return
 
     if args.command == "report":

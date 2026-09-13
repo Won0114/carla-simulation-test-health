@@ -8,6 +8,18 @@ from health import HealthReport, build_health_report
 
 
 @dataclass(frozen=True)
+class RouteRegression:
+    """A route-level change that helps an engineer locate a regression."""
+
+    route_id: str
+    baseline_status: str
+    candidate_status: str
+    score_delta: float
+    duration_delta: float
+    infraction_delta: int
+
+
+@dataclass(frozen=True)
 class ReleaseComparison:
     """Health deltas and regression decisions for two releases."""
 
@@ -17,6 +29,7 @@ class ReleaseComparison:
     average_score_delta: float
     p95_duration_delta: float
     critical_infraction_delta: int
+    route_regressions: tuple[RouteRegression, ...]
     regressions: tuple[str, ...]
     release_ready: bool
 
@@ -42,6 +55,31 @@ def compare_releases(
     duration_delta = candidate.p95_system_duration - baseline.p95_system_duration
     critical_delta = candidate.critical_infraction_count - baseline.critical_infraction_count
 
+    baseline_by_route = {route.route_id: route for route in baseline_routes}
+    candidate_by_route = {route.route_id: route for route in candidate_routes}
+    route_regressions = []
+    for route_id in sorted(baseline_by_route.keys() & candidate_by_route.keys()):
+        baseline_route = baseline_by_route[route_id]
+        candidate_route = candidate_by_route[route_id]
+        score_change = candidate_route.composed_score - baseline_route.composed_score
+        duration_change = candidate_route.duration_system - baseline_route.duration_system
+        infraction_change = candidate_route.num_infractions - baseline_route.num_infractions
+        status_regressed = (
+            baseline_route.status in {"Completed", "Perfect"}
+            and candidate_route.status not in {"Completed", "Perfect"}
+        )
+        if status_regressed or score_change < -3.0 or infraction_change > 0:
+            route_regressions.append(
+                RouteRegression(
+                    route_id=route_id,
+                    baseline_status=baseline_route.status,
+                    candidate_status=candidate_route.status,
+                    score_delta=score_change,
+                    duration_delta=duration_change,
+                    infraction_delta=infraction_change,
+                )
+            )
+
     regressions = []
     if completion_delta < -0.02:
         regressions.append(f"Completion rate decreased by {abs(completion_delta):.1%}")
@@ -59,6 +97,7 @@ def compare_releases(
         average_score_delta=score_delta,
         p95_duration_delta=duration_delta,
         critical_infraction_delta=critical_delta,
+        route_regressions=tuple(route_regressions),
         regressions=tuple(regressions),
         release_ready=not regressions and candidate.healthy,
     )
